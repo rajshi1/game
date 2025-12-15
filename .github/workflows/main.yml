@@ -1,0 +1,17 @@
+name: Build Game
+on: [push]
+permissions:
+  contents: write
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build with Pygbag
+        run: |
+          pip install pygbag
+          pygbag --build $GITHUB_WORKSPACE/main.py
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: build/web
