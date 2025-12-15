@@ -2,7 +2,7 @@ import pygame
 import random
 import sys
 import os
-import asyncio  # <--- CHANGE 1: Must import asyncio
+import asyncio
 
 # --- Initialization ---
 pygame.init()
@@ -27,7 +27,6 @@ font = pygame.font.SysFont('Arial', 40, bold=True)
 small_font = pygame.font.SysFont('Arial', 20)
 
 # --- Web-Safe Asset Loading ---
-# CHANGE 2: We removed the hardcoded computer path "/Users/..."
 def load_asset(name, type="image"):
     if os.path.exists(name):
         if type == "image":
@@ -148,7 +147,7 @@ def score_display(game_state, score, high_score):
         pygame.draw.rect(screen, BLACK, bg_rect)
         screen.blit(high_score_surf, high_score_rect)
         
-        restart_text = small_font.render("Press SPACE to Restart", True, WHITE)
+        restart_text = small_font.render("Press SPACE or TAP to Restart", True, WHITE)
         restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 90))
         screen.blit(restart_text, restart_rect)
 
@@ -161,16 +160,15 @@ def show_start_screen():
         title_rect = title.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50))
         screen.blit(title, title_rect)
     
-    msg = small_font.render("Press SPACE to Start", True, WHITE)
+    msg = small_font.render("Press SPACE or TAP to Start", True, WHITE)
     msg_rect = msg.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 50))
     bg_rect = pygame.Rect(msg_rect.x - 10, msg_rect.y - 5, msg_rect.width + 20, msg_rect.height + 10)
     pygame.draw.rect(screen, BLACK, bg_rect)
     screen.blit(msg, msg_rect)
 
 
-# --- CHANGE 3: The Main Loop must be async ---
+# --- Main Loop (Mobile Compatible) ---
 async def main():
-    # Variables moved inside main for safety
     bird_movement = 0
     game_state = "start"
     score = 0
@@ -186,34 +184,47 @@ async def main():
     pygame.time.set_timer(SPAWNPIPE, current_spawn_rate)
 
     while True:
+        # Detect Input (Tap or Key)
+        jump_command = False
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            
+            # Check for Spacebar
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    if game_state == "start":
-                        game_state = "active"
-                        bird_movement = 0
-                        pipe_list.clear()
-                        scored_pipes.clear()
-                        score = 0
-                        bird_rect.center = (50, 300)
-                        bird_movement = -6
-                        game_speed = START_SPEED
-                        current_spawn_rate = 1200
-                        pygame.time.set_timer(SPAWNPIPE, current_spawn_rate)
-                        if jump_sound: jump_sound.play()
-                        
-                    elif game_state == "active":
-                        bird_movement = -6
-                        if jump_sound: jump_sound.play()
-                        
-                    elif game_state == "game_over":
-                        game_state = "start"
+                    jump_command = True
+            
+            # Check for Mouse Click / Screen Tap
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                jump_command = True
 
             if event.type == SPAWNPIPE and game_state == "active":
                 pipe_list.extend(create_pipe())
+
+        # Logic using the single "jump_command" flag
+        if jump_command:
+            if game_state == "start":
+                game_state = "active"
+                bird_movement = 0
+                pipe_list.clear()
+                scored_pipes.clear()
+                score = 0
+                bird_rect.center = (50, 300)
+                bird_movement = -6
+                game_speed = START_SPEED
+                current_spawn_rate = 1200
+                pygame.time.set_timer(SPAWNPIPE, current_spawn_rate)
+                if jump_sound: jump_sound.play()
+                
+            elif game_state == "active":
+                bird_movement = -6
+                if jump_sound: jump_sound.play()
+                
+            elif game_state == "game_over":
+                game_state = "start"
 
         draw_background()
 
@@ -248,7 +259,6 @@ async def main():
             if check_collision(pipe_list, bird_rect):
                 game_state = "game_over"
                 if score > high_score: high_score = score
-                if score < high_score: high_score = score
             
             for pipe in pipe_list:
                 if pipe.bottom >= FLOOR_HEIGHT and pipe.centerx < bird_rect.centerx and pipe not in scored_pipes:
@@ -274,12 +284,7 @@ async def main():
         
         pygame.display.update()
         clock.tick(120)
-        
-        # --- CRITICAL FOR WEB ---
-        # This line pauses for 0 seconds, but allows the browser to update.
-        # Without this, the browser will freeze/crash.
-        await asyncio.sleep(0) 
+        await asyncio.sleep(0)
 
-# Run the async main function
 if __name__ == "__main__":
     asyncio.run(main())
